@@ -15,26 +15,6 @@ gameDiv.innerHTML = `
   <div id="status"></div>
 `;
 
-document.getElementById('joinBtn').onclick = async () => {
-  const name = document.getElementById('name').value;
-  const room = document.getElementById('room').value;
-  const status = document.getElementById('status');
-
-  if (!name || !room) {
-    status.innerText = "❌ Please enter name and room.";
-    return;
-  }
-
-  const { data, error } = await supabase.from('players').insert([{ name, room }]);
-
-  if (error) {
-    status.innerText = "❌ Failed to join: " + error.message;
-  } else {
-    status.innerText = "✅ Joined room! Waiting for other players...";
-    waitForPlayers(room); // we'll build this next
-  }
-};
-
 async function waitForPlayers(room) {
   const checkPlayers = async () => {
     const { data, error } = await supabase
@@ -64,6 +44,27 @@ async function waitForPlayers(room) {
   // Initial check in case 3 already joined
   checkPlayers();
 }
+
+document.getElementById('joinBtn').onclick = async () => {
+  const name = document.getElementById('name').value;
+  const room = document.getElementById('room').value;
+  const status = document.getElementById('status');
+
+  if (!name || !room) {
+    status.innerText = "❌ Please enter name and room.";
+    return;
+  }
+
+  const { data, error } = await supabase.from('players').insert([{ name, room }]);
+
+  if (error) {
+    status.innerText = "❌ Failed to join: " + error.message;
+  } else {
+    status.innerText = "✅ Joined room! Waiting for other players...";
+    waitForPlayers(room); // we'll build this next
+  }
+};
+
   checkPlayers();
 }
 
