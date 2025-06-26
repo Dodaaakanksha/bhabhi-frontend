@@ -74,9 +74,10 @@ document.getElementById('joinBtn').onclick = async () => {
   }
 };
 
-// Placeholder to prevent ReferenceError
-function startGame(players) {
-  console.log("🚀 Game started with players:", players);
+function showHand(cards) {
+  const handDiv = document.createElement('div');
+  handDiv.innerHTML = `<h3>Your Cards:</h3><div>${cards.map(c => `${c.rank}${c.suit}`).join(' ')}</div>`;
+  document.getElementById('game').appendChild(handDiv);
 }
 
 function startGame(players) {
