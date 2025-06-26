@@ -5,7 +5,7 @@ console.log("✅ app.js loaded");
 const SUPABASE_URL = "https://oyuqmsfifmlrxawsrtwl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95dXFtc2ZpZm1scnhhd3NydHdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5MzA0NzcsImV4cCI6MjA2NjUwNjQ3N30.MhKu34EGcP6h7afU066a_haib7JfTxurrYz4cDPviYc";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-console.log("✅ Supabase client:", supabase);
+console.log("✅ Supabase client created");
 
 const gameDiv = document.getElementById('game');
 
@@ -27,7 +27,7 @@ async function waitForPlayers(room) {
     console.log("Current players in room:", data);
     if (data.length >= 3) {
       document.getElementById('status').innerText = `🎮 3 players joined! Starting game...`;
-      startGame(data); // Temporary placeholder
+      startGame(data); // placeholder for now
     }
   };
 
@@ -36,9 +36,14 @@ async function waitForPlayers(room) {
     .channel('players-room-sub')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'players', filter: `room=eq.${room}` },
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'players',
+        filter: `room=eq.${room}`,
+      },
       () => {
-        checkPlayers(); // re-check players on new insert
+        checkPlayers();
       }
     )
     .subscribe();
@@ -69,7 +74,7 @@ document.getElementById('joinBtn').onclick = async () => {
   }
 };
 
-// Placeholder to avoid ReferenceError
+// Placeholder to prevent ReferenceError
 function startGame(players) {
-  console.log("🚀 Starting game with players:", players);
+  console.log("🚀 Game started with players:", players);
 }
