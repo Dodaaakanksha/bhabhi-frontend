@@ -82,7 +82,8 @@ function showHand(cards) {
 
 function startGame(players) {
   console.log("🚀 Starting game with players:", players);
-
+  console.log("🃏 Dealt hands:", hands);
+  
   const SUITS = ['♠', '♥', '♦', '♣'];
   const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
@@ -133,5 +134,6 @@ function startGame(players) {
   // Show own hand
   const myName = document.getElementById('name').value;
   showHand(hands[myName]);
+  console.log("🖐 Displaying hand for:", myName, hands[myName]);
 }
 
