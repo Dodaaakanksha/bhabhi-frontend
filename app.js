@@ -42,6 +42,7 @@ async function waitForPlayers(room) {
       .select('*')
       .eq('room', room);
 
+    console.log("Current players in room:", data);
     if (data.length >= 3) {
       document.getElementById('status').innerText = `🎮 3 players joined! Starting game...`;
       startGame(data); // call your start game logic here
