@@ -1,9 +1,11 @@
 // app.js — must be ES Module (because of import)
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+console.log("✅ app.js loaded");
 
 const SUPABASE_URL = "https://oyuqmsfifmlrxawsrtwl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95dXFtc2ZpZm1scnhhd3NydHdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5MzA0NzcsImV4cCI6MjA2NjUwNjQ3N30.MhKu34EGcP6h7afU066a_haib7JfTxurrYz4cDPviYc";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+console.log("✅ Supabase client:", supabase);
 
 const gameDiv = document.getElementById('game');
 
@@ -46,8 +48,12 @@ async function waitForPlayers(room) {
 }
 
 document.getElementById('joinBtn').onclick = async () => {
+  console.log("🟢 Join button clicked");
   const name = document.getElementById('name').value;
   const room = document.getElementById('room').value;
+  console.log({ name, room });
+  const { data, error } = await supabase.from('players').insert([{ name, room }]);
+  console.log("Insert result:", { data, error });
   const status = document.getElementById('status');
 
   if (!name || !room) {
