@@ -170,6 +170,13 @@ async function startGame(players) {
     hands[playerId].push({ ...card });
   });
 
+  const duplicates = {};
+  for (const card of fullDeck) {
+    const key = `${card.rank}${card.suit}`;
+    duplicates[key] = (duplicates[key] || 0) + 1;
+  }
+  console.log("🔍 Duplicate cards in deck:", Object.entries(duplicates).filter(([k, v]) => v > 1));
+
   // Find Ace♠ holder
   const starterIndex = players.findIndex(p =>
     hands[p.id].some(c => c.rank === 'A' && c.suit === '♠')
