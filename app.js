@@ -52,8 +52,6 @@ document.getElementById('joinBtn').onclick = async () => {
   const name = document.getElementById('name').value;
   const room = document.getElementById('room').value;
   console.log({ name, room });
-  const { data, error } = await supabase.from('players').insert([{ name, room }]);
-  console.log("Insert result:", { data, error });
   const status = document.getElementById('status');
 
   if (!name || !room) {
@@ -62,6 +60,7 @@ document.getElementById('joinBtn').onclick = async () => {
   }
 
   const { data, error } = await supabase.from('players').insert([{ name, room }]);
+  console.log("Insert result:", { data, error });
 
   if (error) {
     status.innerText = "❌ Failed to join: " + error.message;
