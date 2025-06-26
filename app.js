@@ -302,29 +302,3 @@ function updateUI(game) {
   isMyTurn ? "🟢 Your turn! Play a card." : `⏳ Waiting for ${currentPlayerName}...`;
 }
 
-async function playCard(card, game) {
-  const myName = document.getElementById('name').value;
-  const myPlayer = game.turn_order.find(pid => game.player_names?.[pid] === myName);
-  if (!myPlayer) return;
-  
-  const newHands = { ...game.hands };
-  newHands[myPlayer] = newHands[myPlayer].filter(c => c.suit !== card.suit || c.rank !== card.rank);
-
-  const newPile = [...game.pile, { player: myPlayer, card }];
-  const nextTurn = (game.current_turn + 1) % game.turn_order.length;
-
-  const { error } = await supabase.from('games').upsert([{
-    room: game.room,
-    hands: newHands,
-    pile: newPile,
-    current_turn: nextTurn,
-    deck: game.deck,  // 🔥 Include deck to satisfy NOT NULL constraint
-    turn_order: game.turn_order, // optional, helps avoid overwriting
-    started: true, // preserve game state
-    player_names: game.player_names // also preserve player name map
-  }], { onConflict: 'room' });
-
-
-  if (error) console.error("❌ Failed to play:", error);
-}
-
