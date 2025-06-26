@@ -237,8 +237,13 @@ async function playCard(card, game) {
     room: game.room,
     hands: newHands,
     pile: newPile,
-    current_turn: nextTurn
+    current_turn: nextTurn,
+    deck: game.deck,  // 🔥 Include deck to satisfy NOT NULL constraint
+    turn_order: game.turn_order, // optional, helps avoid overwriting
+    started: true, // preserve game state
+    player_names: game.player_names // also preserve player name map
   }], { onConflict: 'room' });
+
 
   if (error) console.error("❌ Failed to play:", error);
 }
