@@ -27,7 +27,7 @@ async function waitForPlayers(room) {
     console.log("Current players in room:", data);
     if (data.length >= 3) {
       document.getElementById('status').innerText = `🎮 3 players joined! Starting game...`;
-      startGame(data); // placeholder for now
+      startGame(data);
     }
   };
 
@@ -80,7 +80,15 @@ function showHand(cards) {
   document.getElementById('game').appendChild(handDiv);
 }
 
-function startGame(players) {
+let gameStarted = false;
+
+async function startGame(players) {
+  if (gameStarted) {
+    console.log("Game already started, skipping duplicate start");
+    return;
+  }
+  gameStarted = true;
+  
   console.log("🚀 Starting game with players:", players);
   
   const SUITS = ['♠', '♥', '♦', '♣'];
