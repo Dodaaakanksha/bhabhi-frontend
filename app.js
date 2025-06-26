@@ -98,21 +98,34 @@ function showHand(cards) {
 }
 
 function renderGameState() {
-  const name = document.getElementById('name').value;
-  
+  const room = document.getElementById('room').value;
+
+  // Subscribe to changes on the `games` table for this room
   supabase
-    .from(`games:room=eq.${document.getElementById('room').value}`)
-    .on('UPDATE', payload => {
-      updateUI(payload.new);
-    })
+    .channel('room-game-updates')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'games',
+        filter: `room=eq.${room}`,
+      },
+      (payload) => {
+        console.log("📡 Game updated via realtime:", payload);
+        updateUI(payload.new);
+      }
+    )
     .subscribe();
 
+  // Also fetch current state once
   const loadGame = async () => {
     const { data } = await supabase
       .from('games')
       .select('*')
-      .eq('room', document.getElementById('room').value)
+      .eq('room', room)
       .single();
+
     if (data) updateUI(data);
   };
 
