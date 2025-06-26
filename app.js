@@ -140,7 +140,7 @@ async function startGame(players) {
 
   console.log("🚀 Starting game with players:", players);
 
-  // Build unique 52-card deck
+  // 1. Create a standard 52-card deck
   const SUITS = ['♠','♥','♦','♣'];
   const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 
@@ -151,55 +151,45 @@ async function startGame(players) {
     }
   }
 
-  // Shuffle deck
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
+  // 2. Shuffle using Fisher–Yates
+  for (let i = fullDeck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [fullDeck[i], fullDeck[j]] = [fullDeck[j], fullDeck[i]];
   }
 
-  fullDeck = shuffle(fullDeck);
-
-  // Distribute cards
+  // 3. Distribute cards evenly
   const hands = {};
   players.forEach(p => hands[p.id] = []);
-  fullDeck.forEach((card, i) => {
+  for (let i = 0; i < fullDeck.length; i++) {
     const playerId = players[i % players.length].id;
-    hands[playerId].push({ ...card });
-  });
-
-  const duplicates = {};
-  for (const card of fullDeck) {
-    const key = `${card.rank}${card.suit}`;
-    duplicates[key] = (duplicates[key] || 0) + 1;
+    hands[playerId].push(fullDeck[i]); // direct assignment
   }
-  console.log("🔍 Duplicate cards in deck:", Object.entries(duplicates).filter(([k, v]) => v > 1));
 
-  // Find Ace♠ holder
+  // 4. Find Ace♠ holder
   const starterIndex = players.findIndex(p =>
     hands[p.id].some(c => c.rank === 'A' && c.suit === '♠')
   );
 
   if (starterIndex === -1) {
-    console.error("🛑 No player has Ace of Spades — reshuffling not implemented.");
+    console.error("🛑 No player has Ace of Spades — reshuffle logic not yet implemented.");
     return;
   }
 
-  // Determine turn order starting from Ace♠ holder
+  // 5. Define turn order starting from Ace♠ holder
   const turnOrder = players
     .slice(starterIndex)
     .concat(players.slice(0, starterIndex))
     .map(p => p.id);
 
-  const room = players[0].room;
+  // 6. Map player IDs to names
   const playerNames = {};
   players.forEach(p => {
     playerNames[p.id] = p.name;
   });
 
-  // Upsert initial game state
+  const room = players[0].room;
+
+  // 7. Save game state to Supabase
   const { error } = await supabase
     .from('games')
     .upsert([{
@@ -220,8 +210,19 @@ async function startGame(players) {
   }
 
   console.log("✅ Game started and saved");
-
   renderGameState();
+
+  // Optional debug check for duplicates
+  const seen = {};
+  for (const hand of Object.values(hands)) {
+    for (const card of hand) {
+      const key = `${card.rank}${card.suit}`;
+      seen[key] = (seen[key] || 0) + 1;
+    }
+  }
+  const duplicates = Object.entries(seen).filter(([_, count]) => count > 1);
+  console.log("🔍 Duplicate cards check:", duplicates);
+  console.log("🂡 Ace♠ present:", seen['A♠'] === 1);
 }
 
 async function playCard(card, game) {
