@@ -54,8 +54,8 @@ async function waitForPlayers(room) {
 
 document.getElementById('joinBtn').onclick = async () => {
   console.log("🟢 Join button clicked");
-  const name = document.getElementById('name').value;
-  const room = document.getElementById('room').value;
+  const name = document.getElementById('name').value.trim();
+  const room = document.getElementById('room').value.trim();
   const status = document.getElementById('status');
 
   if (!name || !room) {
@@ -63,6 +63,23 @@ document.getElementById('joinBtn').onclick = async () => {
     return;
   }
 
+  // Check current players count in the room
+  const { data: playersInRoom, error: countError } = await supabase
+    .from('players')
+    .select('id', { count: 'exact' })
+    .eq('room', room);
+
+  if (countError) {
+    status.innerText = "❌ Error checking room players: " + countError.message;
+    return;
+  }
+
+  if (playersInRoom.length >= 3) {
+    status.innerText = "❌ Room full! Maximum 3 players allowed.";
+    return;
+  }
+
+  // If below limit, insert the new player
   const { data, error } = await supabase.from('players').insert([{ name, room }]);
   console.log("Insert result:", { data, error });
 
