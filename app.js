@@ -44,12 +44,25 @@ async function waitForPlayers(room) {
 
     if (data.length >= 3) {
       document.getElementById('status').innerText = `🎮 3 players joined! Starting game...`;
-      // TODO: load game UI and shuffle cards
-    } else {
-      setTimeout(checkPlayers, 2000); // re-check every 2s
+      startGame(data); // call your start game logic here
     }
   };
 
+  // Listen for new players joining
+  supabase
+    .channel('players-room-sub')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'players', filter: `room=eq.${room}` },
+      () => {
+        checkPlayers(); // re-check players on new insert
+      }
+    )
+    .subscribe();
+
+  // Initial check in case 3 already joined
+  checkPlayers();
+}
   checkPlayers();
 }
 
