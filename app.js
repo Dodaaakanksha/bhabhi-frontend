@@ -188,6 +188,20 @@ async function startGame(players) {
   renderGameState();
 }
 
+const SUITS_ORDER = ['♠', '♥', '♦', '♣']; // descending priority order
+const RANKS_ORDER = ['A','K','Q','J','10','9','8','7','6','5','4','3','2']; // descending
+
+function sortCardsDesc(cards) {
+  return cards.slice().sort((a, b) => {
+    // Compare suits first
+    const suitDiff = SUITS_ORDER.indexOf(a.suit) - SUITS_ORDER.indexOf(b.suit);
+    if (suitDiff !== 0) return suitDiff;
+
+    // Compare ranks
+    return RANKS_ORDER.indexOf(a.rank) - RANKS_ORDER.indexOf(b.rank);
+  });
+}
+
 function updateUI(game) {
   document.getElementById('game').querySelectorAll('.hand').forEach(n => n.remove());
   document.getElementById('game').querySelectorAll('.pile').forEach(n => n.remove());
@@ -198,10 +212,11 @@ function updateUI(game) {
 
   // Render hand
   const cards = game.hands[myPlayer] || [];
+  const sortedCards = sortCardsDesc(cards);
   const handDiv = document.createElement('div');
   handDiv.className = 'hand';
-  handDiv.innerHTML = `<h3>Your Cards (${cards.length})</h3>`;
-  cards.forEach((c, i) => {
+  handDiv.innerHTML = `<h3>Your Cards (${sortedCards.length})</h3>`;
+  sortedCards.forEach((c, i) => {
     const btn = document.createElement('button');
     btn.innerText = `${c.rank}${c.suit}`;
     btn.disabled = !isMyTurn;
