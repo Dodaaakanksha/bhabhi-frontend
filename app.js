@@ -97,91 +97,128 @@ function showHand(cards) {
   document.getElementById('game').appendChild(handDiv);
 }
 
+function renderGameState() {
+  const name = document.getElementById('name').value;
+  
+  supabase
+    .from(`games:room=eq.${document.getElementById('room').value}`)
+    .on('UPDATE', payload => {
+      updateUI(payload.new);
+    })
+    .subscribe();
+
+  const loadGame = async () => {
+    const { data } = await supabase
+      .from('games')
+      .select('*')
+      .eq('room', document.getElementById('room').value)
+      .single();
+    if (data) updateUI(data);
+  };
+
+  loadGame();
+}
+
 let gameStarted = false;
 
 async function startGame(players) {
-  if (gameStarted) {
-    console.log("Game already started, skipping duplicate start");
-    return;
-  }
+  if (gameStarted) return;
   gameStarted = true;
-  
+
   console.log("🚀 Starting game with players:", players);
-  
-  const SUITS = ['♠', '♥', '♦', '♣'];
-  const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-  // Create full deck
-  const fullDeck = [];
-  for (let suit of SUITS) {
-    for (let rank of RANKS) {
-      fullDeck.push({ suit, rank });
-    }
-  }
+  // Build deck and shuffle
+  const SUITS = ['♠','♥','♦','♣'], RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+  let fullDeck = SUITS.flatMap(s => RANKS.map(r => ({ suit: s, rank: r })));
+  fullDeck = fullDeck.sort(() => Math.random() - .5);
 
-  // Shuffle
-  for (let i = fullDeck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [fullDeck[i], fullDeck[j]] = [fullDeck[j], fullDeck[i]];
-  }
+  // Deal cards evenly
+  const hands = {}, numPlayers = players.length;
+  players.forEach(p => hands[p.id] = []);
+  fullDeck.forEach((card, i) => hands[players[i % numPlayers].id].push(card));
 
-  // Distribute cards
-  const numPlayers = players.length;
-  const hands = {};
-  players.forEach((p) => (hands[p.id] = []));
-
-  let turn = 0;
-  while (fullDeck.length) {
-    const card = fullDeck.pop();
-    const player = players[turn % numPlayers];
-    hands[player.id].push(card);
-    turn++;
-  }
+  // Find Ace♠ starter
+  const starterIndex = players.findIndex(p =>
+    hands[p.id].some(c => c.rank === 'A' && c.suit === '♠')
+  );
+  const turnOrder = players
+    .slice(starterIndex)
+    .concat(players.slice(0, starterIndex))
+    .map(p => p.id);
 
   const room = players[0].room;
 
-  // Check if game already exists for this room
-  const { data: existingGame, error: selectError } = await supabase
+  // Upsert game state
+  const { error } = await supabase
     .from('games')
-    .select('*')
-    .eq('room', room)
-    .single();
+    .upsert([{
+      room,
+      deck: fullDeck,
+      hands,
+      turn_order: turnOrder,
+      current_turn: 0,
+      pile: [],
+      started: true
+    }], { onConflict: 'room' });
 
-  if (selectError && selectError.code !== 'PGRST116') {
-    // Error other than "no rows found"
-    console.error("❌ Error checking existing game:", selectError.message);
+  if (error) {
+    console.error("❌ Error upserting game:", error.message);
     return;
   }
+  console.log("✅ Game started and saved");
 
-  if (existingGame) {
-    console.log("✅ Game already exists for this room. Skipping insert.");
-  } else {
-    // Insert new game row
-    const { error } = await supabase.from('games').insert([
-      {
-        room,
-        deck: [],
-        hands,
-        started: true,
-      },
-    ]);
+  renderGameState();
+}
 
-    if (error) {
-      console.error("❌ Failed to start game:", error.message);
-      return;
-    }
+function updateUI(game) {
+  document.getElementById('game').querySelectorAll('.hand').forEach(n => n.remove());
+  document.getElementById('game').querySelectorAll('.pile').forEach(n => n.remove());
 
-    console.log("✅ Game started and hands saved to Supabase");
-  }
+  const myId = supabase.auth.user()?.id || null;
+  const idx = game.turn_order.indexOf(myId);
+  const isMyTurn = idx === game.current_turn;
 
-  // Show own hand
-  const myName = document.getElementById('name').value;
-  const myPlayer = players.find((p) => p.name === myName);
-  if (myPlayer) {
-    showHand(hands[myPlayer.id]);
-  } else {
-    console.error("Could not find player ID for current user");
-  }
-  console.log("🖐 Displaying hand for:", myName, hands[myName]);
+  // Render hand
+  const cards = game.hands[myId] || [];
+  const handDiv = document.createElement('div');
+  handDiv.className = 'hand';
+  handDiv.innerHTML = `<h3>Your Cards (${cards.length})</h3>`;
+  cards.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.innerText = `${c.rank}${c.suit}`;
+    btn.disabled = !isMyTurn;
+    btn.onclick = () => playCard(c, game);
+    handDiv.appendChild(btn);
+  });
+  document.getElementById('game').appendChild(handDiv);
+
+  // Render pile
+  const pileDiv = document.createElement('div');
+  pileDiv.className = 'pile';
+  pileDiv.innerHTML = `<h3>Pile:</h3>${game.pile.map(pc => `${pc.card.rank}${pc.card.suit} (${pc.player})`).join(' ')}`;
+  document.getElementById('game').appendChild(pileDiv);
+
+  document.getElementById('status').innerText =
+    isMyTurn ? "🟢 Your turn! Play a card." : `Waiting: Player ${game.turn_order[game.current_turn]}`;
+}
+
+async function playCard(card, game) {
+  const myId = supabase.auth.user()?.id || null;
+  if (!myId) return;
+
+  const newHands = { ...game.hands };
+  newHands[myId] = newHands[myId].filter(c => c.suit !== card.suit || c.rank !== card.rank);
+
+  const newPile = [...game.pile, { player: myId, card }];
+  const nextTurn = (game.current_turn + 1) % game.turn_order.length;
+
+  const { error } = await supabase.from('games').upsert([{
+    room: game.room,
+    hands: newHands,
+    pile: newPile,
+    current_turn: nextTurn
+  }], { onConflict: 'room' });
+
+  if (error) console.error("❌ Failed to play:", error);
 }
 
