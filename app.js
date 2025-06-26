@@ -151,7 +151,7 @@ async function startGame(players) {
     }
   }
 
-  // Shuffle
+  // Shuffle deck
   function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -162,37 +162,25 @@ async function startGame(players) {
 
   fullDeck = shuffle(fullDeck);
 
-  // Distribute
+  // Distribute cards
   const hands = {};
   players.forEach(p => hands[p.id] = []);
   fullDeck.forEach((card, i) => {
     const playerId = players[i % players.length].id;
-    hands[playerId].push({ ...card }); // Ensure unique copies
+    hands[playerId].push({ ...card });
   });
 
   // Find Ace♠ holder
   const starterIndex = players.findIndex(p =>
     hands[p.id].some(c => c.rank === 'A' && c.suit === '♠')
   );
+
   if (starterIndex === -1) {
     console.error("🛑 No player has Ace of Spades — reshuffling not implemented.");
     return;
   }
 
-  const turnOrder = players
-    .slice(starterIndex)
-    .concat(players.slice(0, starterIndex))
-    .map(p => p.id);
-
-  // Deal cards evenly
-  const hands = {}, numPlayers = players.length;
-  players.forEach(p => hands[p.id] = []);
-  fullDeck.forEach((card, i) => hands[players[i % numPlayers].id].push(card));
-
-  // Find Ace♠ starter
-  const starterIndex = players.findIndex(p =>
-    hands[p.id].some(c => c.rank === 'A' && c.suit === '♠')
-  );
+  // Determine turn order starting from Ace♠ holder
   const turnOrder = players
     .slice(starterIndex)
     .concat(players.slice(0, starterIndex))
@@ -204,7 +192,7 @@ async function startGame(players) {
     playerNames[p.id] = p.name;
   });
 
-  // Upsert game state
+  // Upsert initial game state
   const { error } = await supabase
     .from('games')
     .upsert([{
@@ -223,6 +211,7 @@ async function startGame(players) {
     console.error("❌ Error upserting game:", error.message);
     return;
   }
+
   console.log("✅ Game started and saved");
 
   renderGameState();
