@@ -27,7 +27,7 @@ async function waitForPlayers(room) {
     console.log("Current players in room:", data);
     if (data.length >= 3) {
       document.getElementById('status').innerText = `🎮 3 players joined! Starting game...`;
-      startGame(data); // call your start game logic here
+      startGame(data); // Temporary placeholder
     }
   };
 
@@ -51,7 +51,6 @@ document.getElementById('joinBtn').onclick = async () => {
   console.log("🟢 Join button clicked");
   const name = document.getElementById('name').value;
   const room = document.getElementById('room').value;
-  console.log({ name, room });
   const status = document.getElementById('status');
 
   if (!name || !room) {
@@ -66,14 +65,11 @@ document.getElementById('joinBtn').onclick = async () => {
     status.innerText = "❌ Failed to join: " + error.message;
   } else {
     status.innerText = "✅ Joined room! Waiting for other players...";
-    waitForPlayers(room); // we'll build this next
+    waitForPlayers(room);
   }
 };
 
+// Placeholder to avoid ReferenceError
 function startGame(players) {
   console.log("🚀 Starting game with players:", players);
-  // You can now proceed to implement game logic here
 }
-
-
-
