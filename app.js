@@ -64,6 +64,5 @@ document.getElementById('joinBtn').onclick = async () => {
     waitForPlayers(room); // we'll build this next
   }
 };
-}
 
 
