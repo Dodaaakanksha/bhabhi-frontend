@@ -103,15 +103,15 @@ function startGame(players) {
   // Distribute
   const numPlayers = players.length;
   const hands = {};
-  players.forEach((p, i) => (hands[p.name] = []));
+  players.forEach((p) => (hands[p.id] = []));
 
   let turn = 0;
   while (fullDeck.length) {
-    const card = fullDeck.pop();
-    const player = players[turn % numPlayers];
-    hands[player.name].push(card);
-    turn++;
-  }
+  const card = fullDeck.pop();
+  const player = players[turn % numPlayers];
+  hands[player.id].push(card);
+  turn++;
+}
 
   // Save game data to Supabase
   const room = players[0].room;
@@ -132,7 +132,12 @@ function startGame(players) {
 
   // Show own hand
   const myName = document.getElementById('name').value;
-  showHand(hands[myName]);
+  const myPlayer = players.find(p => p.name === myName);
+  if (myPlayer) {
+    showHand(hands[myPlayer.id]);
+  } else {
+    console.error("Could not find player ID for current user");
+  }
   console.log("🖐 Displaying hand for:", myName, hands[myName]);
 }
 
