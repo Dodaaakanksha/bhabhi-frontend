@@ -140,10 +140,49 @@ async function startGame(players) {
 
   console.log("🚀 Starting game with players:", players);
 
-  // Build deck and shuffle
-  const SUITS = ['♠','♥','♦','♣'], RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-  let fullDeck = SUITS.flatMap(s => RANKS.map(r => ({ suit: s, rank: r })));
-  fullDeck = fullDeck.sort(() => Math.random() - .5);
+  // Build unique 52-card deck
+  const SUITS = ['♠','♥','♦','♣'];
+  const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+
+  let fullDeck = [];
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      fullDeck.push({ suit, rank });
+    }
+  }
+
+  // Shuffle
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  fullDeck = shuffle(fullDeck);
+
+  // Distribute
+  const hands = {};
+  players.forEach(p => hands[p.id] = []);
+  fullDeck.forEach((card, i) => {
+    const playerId = players[i % players.length].id;
+    hands[playerId].push({ ...card }); // Ensure unique copies
+  });
+
+  // Find Ace♠ holder
+  const starterIndex = players.findIndex(p =>
+    hands[p.id].some(c => c.rank === 'A' && c.suit === '♠')
+  );
+  if (starterIndex === -1) {
+    console.error("🛑 No player has Ace of Spades — reshuffling not implemented.");
+    return;
+  }
+
+  const turnOrder = players
+    .slice(starterIndex)
+    .concat(players.slice(0, starterIndex))
+    .map(p => p.id);
 
   // Deal cards evenly
   const hands = {}, numPlayers = players.length;
