@@ -35,3 +35,22 @@ document.getElementById('joinBtn').onclick = async () => {
   }
 };
 
+async function waitForPlayers(room) {
+  const checkPlayers = async () => {
+    const { data, error } = await supabase
+      .from('players')
+      .select('*')
+      .eq('room', room);
+
+    if (data.length >= 3) {
+      document.getElementById('status').innerText = `🎮 3 players joined! Starting game...`;
+      // TODO: load game UI and shuffle cards
+    } else {
+      setTimeout(checkPlayers, 2000); // re-check every 2s
+    }
+  };
+
+  checkPlayers();
+}
+
+
