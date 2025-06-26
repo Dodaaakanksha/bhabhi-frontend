@@ -176,7 +176,8 @@ async function startGame(players) {
       current_turn: 0,
       pile: [],
       started: true,
-      player_names: playerNames
+      player_names: playerNames,
+      starting_suit: null
     }], { onConflict: 'room' });
 
   if (error) {
@@ -186,6 +187,65 @@ async function startGame(players) {
   console.log("✅ Game started and saved");
 
   renderGameState();
+}
+
+async function playCard(card, game) {
+  const myName = document.getElementById('name').value;
+  const myPlayer = game.turn_order.find(pid => game.player_names?.[pid] === myName);
+  if (!myPlayer) return;
+
+  const newHands = { ...game.hands };
+  newHands[myPlayer] = newHands[myPlayer].filter(c => c.suit !== card.suit || c.rank !== card.rank);
+
+  const newPile = [...game.pile, { player: myPlayer, card }];
+  const currentSuit = game.starting_suit || card.suit;
+  const isFirstCard = game.pile.length === 0;
+
+  let nextTurn = (game.current_turn + 1) % game.turn_order.length;
+  const roundDone = newPile.length === game.turn_order.length;
+
+  let updatedGameState = {
+    room: game.room,
+    hands: newHands,
+    pile: newPile,
+    current_turn: nextTurn,
+    starting_suit: isFirstCard ? card.suit : game.starting_suit
+  };
+
+  // Check for mismatched suit
+  const isMismatched = card.suit !== currentSuit;
+
+  // Check if round should end
+  if (isMismatched || roundDone) {
+    // Filter cards of correct suit
+    const validCards = newPile.filter(p => p.card.suit === currentSuit);
+    const rankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    
+    const winner = validCards.reduce((top, current) => {
+      const topValue = rankOrder.indexOf(top.card.rank);
+      const currentValue = rankOrder.indexOf(current.card.rank);
+      return currentValue > topValue ? current : top;
+    });
+
+    const winnerId = winner.player;
+
+    // Remove pile from center
+    updatedGameState.pile = [];
+    updatedGameState.starting_suit = null;
+    updatedGameState.current_turn = game.turn_order.indexOf(winnerId);
+
+    if (isMismatched) {
+      // Add pile to winner's hand (you could also use collected[] tracking)
+      newHands[winnerId] = newHands[winnerId].concat(newPile.map(p => p.card));
+      updatedGameState.hands = newHands;
+    }
+    // If all were same suit, cards are discarded – do nothing extra
+  }
+
+  // Save updated state
+  const { error } = await supabase.from('games').upsert([updatedGameState], { onConflict: 'room' });
+
+  if (error) console.error("❌ Failed to play:", error);
 }
 
 const SUITS_ORDER = ['♠', '♥', '♦', '♣']; // descending priority order
@@ -228,10 +288,12 @@ function updateUI(game) {
   // Render pile
   const pileDiv = document.createElement('div');
   pileDiv.className = 'pile';
-  pileDiv.innerHTML = `<h3>Pile:</h3>${game.pile.map(pc => {
-    const playerName = game.player_names ? game.player_names[pc.player] : pc.player;
-    return `${pc.card.rank}${pc.card.suit} (${playerName})`;
-  }).join(' ')}`;
+  pileDiv.innerHTML = `<h3>Center Pile (${game.starting_suit ?? '-'})</h3>
+  ${game.pile.map(pc => `${pc.card.rank}${pc.card.suit} (${game.player_names?.[pc.player] ?? pc.player})`).join(' ')}`;
+  //pileDiv.innerHTML = `<h3>Pile:</h3>${game.pile.map(pc => {
+    //const playerName = game.player_names ? game.player_names[pc.player] : pc.player;
+    //return `${pc.card.rank}${pc.card.suit} (${playerName})`;
+  //}).join(' ')}`;
   document.getElementById('game').appendChild(pileDiv);
 
   const currentPlayerId = game.turn_order[game.current_turn];
