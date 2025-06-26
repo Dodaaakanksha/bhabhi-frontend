@@ -213,7 +213,10 @@ function updateUI(game) {
   // Render pile
   const pileDiv = document.createElement('div');
   pileDiv.className = 'pile';
-  pileDiv.innerHTML = `<h3>Pile:</h3>${game.pile.map(pc => `${pc.card.rank}${pc.card.suit} (${pc.player})`).join(' ')}`;
+  pileDiv.innerHTML = `<h3>Pile:</h3>${game.pile.map(pc => {
+    const playerName = game.player_names ? game.player_names[pc.player] : pc.player;
+    return `${pc.card.rank}${pc.card.suit} (${playerName})`;
+  }).join(' ')}`;
   document.getElementById('game').appendChild(pileDiv);
 
   const currentPlayerId = game.turn_order[game.current_turn];
