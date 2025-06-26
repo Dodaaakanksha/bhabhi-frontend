@@ -78,3 +78,59 @@ document.getElementById('joinBtn').onclick = async () => {
 function startGame(players) {
   console.log("🚀 Game started with players:", players);
 }
+
+function startGame(players) {
+  console.log("🚀 Starting game with players:", players);
+
+  const SUITS = ['♠', '♥', '♦', '♣'];
+  const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
+  // Create full deck
+  const fullDeck = [];
+  for (let suit of SUITS) {
+    for (let rank of RANKS) {
+      fullDeck.push({ suit, rank });
+    }
+  }
+
+  // Shuffle
+  for (let i = fullDeck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [fullDeck[i], fullDeck[j]] = [fullDeck[j], fullDeck[i]];
+  }
+
+  // Distribute
+  const numPlayers = players.length;
+  const hands = {};
+  players.forEach((p, i) => (hands[p.name] = []));
+
+  let turn = 0;
+  while (fullDeck.length) {
+    const card = fullDeck.pop();
+    const player = players[turn % numPlayers];
+    hands[player.name].push(card);
+    turn++;
+  }
+
+  // Save game data to Supabase
+  const room = players[0].room;
+  supabase.from('games').insert([
+    {
+      room,
+      deck: [],
+      hands,
+      started: true
+    }
+  ]).then(({ error }) => {
+    if (error) {
+      console.error("❌ Failed to start game:", error.message);
+    } else {
+      console.log("✅ Game started and hands saved to Supabase");
+    }
+  });
+
+  // Show own hand
+  const myName = document.getElementById('name').value;
+  showHand(hands[myName]);
+}
+
