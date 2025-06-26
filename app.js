@@ -358,12 +358,12 @@ function updateUI(game) {
   }
 
   // Sort cards by suit & descending rank
-  const suitOrder = ['♠','♥','♦','♣'];
+  /*const suitOrder = ['♠','♥','♦','♣'];
   const rankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
   const cards = (game.hands[myPlayer] || []).slice().sort((a, b) => {
     if (a.suit !== b.suit) return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
     return rankOrder.indexOf(b.rank) - rankOrder.indexOf(a.rank);
-  });
+  });*/
 
   // Render hand
   const handDiv = document.createElement('div');
