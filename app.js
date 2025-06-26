@@ -206,33 +206,45 @@ async function playCard(card, game) {
   let updatedTurn = nextTurn;
 
   if (allPlayersPlayed) {
-    const cardsOfStartingSuit = newPile.filter(pc => pc.card.suit === startingSuit);
-    const suitRankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-    let highest = -1;
+    let roundOver = false;
     let roundWinnerId = null;
+    let updatedHands = { ...newHands };
+    let updatedPile = [...newPile];
+    let updatedTurnOrder = [...game.turn_order];
+    let updatedPlayerNames = { ...game.player_names };
+    let suitRankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 
-    for (const pc of cardsOfStartingSuit) {
-      const val = suitRankOrder.indexOf(pc.card.rank);
-      if (val > highest) {
-        highest = val;
-        roundWinnerId = pc.player;
+    const mismatch = card.suit !== startingSuit;
+
+    if (mismatch || newPile.length === game.turn_order.length) {
+      roundOver = true;
+
+      // Determine winner of the round
+      const cardsOfSuit = newPile.filter(p => p.card.suit === startingSuit);
+      let highest = -1;
+      for (const p of cardsOfSuit) {
+        const val = suitRankOrder.indexOf(p.card.rank);
+        if (val > highest) {
+          highest = val;
+          roundWinnerId = p.player;
+        }
       }
+
+      if (!roundWinnerId) roundWinnerId = game.turn_order[0];
+
+      // If mismatch, give cards to round winner
+      if (mismatch) {
+        updatedHands[roundWinnerId] = updatedHands[roundWinnerId].concat(updatedPile.map(p => p.card));
+        updatedPile = [];
+      } else {
+        // All played same suit, discard pile
+        updatedPile = [];
+      }
+
+      // Set turn to round winner
+      nextTurn = updatedTurnOrder.indexOf(roundWinnerId);
+      startingSuit = null;
     }
-
-    const allSameSuit = newPile.every(pc => pc.card.suit === startingSuit);
-
-    if (allSameSuit) {
-      // Discard pile
-      updatedPile = [];
-    } else {
-      // Give all pile cards to roundWinner
-      newHands[roundWinnerId] = newHands[roundWinnerId].concat(newPile.map(p => p.card));
-      updatedPile = [];
-    }
-
-    startingSuit = null; // reset for next round
-    updatedTurn = game.turn_order.indexOf(roundWinnerId);
-    if (updatedTurn === -1) updatedTurn = 0;
   }
 
   // Remove players who finished cards
