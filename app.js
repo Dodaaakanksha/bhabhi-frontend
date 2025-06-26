@@ -197,7 +197,7 @@ function updateUI(game) {
   const isMyTurn = game.turn_order[game.current_turn] === myPlayer;
 
   // Render hand
-  const cards = game.hands[myId] || [];
+  const cards = game.hands[myPlayer] || [];
   const handDiv = document.createElement('div');
   handDiv.className = 'hand';
   handDiv.innerHTML = `<h3>Your Cards (${cards.length})</h3>`;
@@ -216,8 +216,10 @@ function updateUI(game) {
   pileDiv.innerHTML = `<h3>Pile:</h3>${game.pile.map(pc => `${pc.card.rank}${pc.card.suit} (${pc.player})`).join(' ')}`;
   document.getElementById('game').appendChild(pileDiv);
 
+  const currentPlayerId = game.turn_order[game.current_turn];
+  const currentPlayerName = game.player_names?.[currentPlayerId] || "Someone";
   document.getElementById('status').innerText =
-    isMyTurn ? "🟢 Your turn! Play a card." : `Waiting: Player ${game.turn_order[game.current_turn]}`;
+  isMyTurn ? "🟢 Your turn! Play a card." : `⏳ Waiting for ${currentPlayerName}...`;
 }
 
 async function playCard(card, game) {
@@ -226,9 +228,9 @@ async function playCard(card, game) {
   if (!myPlayer) return;
   
   const newHands = { ...game.hands };
-  newHands[myId] = newHands[myId].filter(c => c.suit !== card.suit || c.rank !== card.rank);
+  newHands[myPlayer] = newHands[myPlayer].filter(c => c.suit !== card.suit || c.rank !== card.rank);
 
-  const newPile = [...game.pile, { player: myId, card }];
+  const newPile = [...game.pile, { player: myPlayer, card }];
   const nextTurn = (game.current_turn + 1) % game.turn_order.length;
 
   const { error } = await supabase.from('games').upsert([{
