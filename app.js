@@ -160,6 +160,10 @@ async function startGame(players) {
     .map(p => p.id);
 
   const room = players[0].room;
+  const playerNames = {};
+  players.forEach(p => {
+    playerNames[p.id] = p.name;
+  });
 
   // Upsert game state
   const { error } = await supabase
@@ -171,7 +175,8 @@ async function startGame(players) {
       turn_order: turnOrder,
       current_turn: 0,
       pile: [],
-      started: true
+      started: true,
+      player_names: playerNames
     }], { onConflict: 'room' });
 
   if (error) {
@@ -187,9 +192,9 @@ function updateUI(game) {
   document.getElementById('game').querySelectorAll('.hand').forEach(n => n.remove());
   document.getElementById('game').querySelectorAll('.pile').forEach(n => n.remove());
 
-  const myId = supabase.auth.user()?.id || null;
-  const idx = game.turn_order.indexOf(myId);
-  const isMyTurn = idx === game.current_turn;
+  const myName = document.getElementById('name').value;
+  const myPlayer = game.turn_order.find(pid => game.player_names?.[pid] === myName);
+  const isMyTurn = game.turn_order[game.current_turn] === myPlayer;
 
   // Render hand
   const cards = game.hands[myId] || [];
@@ -216,9 +221,10 @@ function updateUI(game) {
 }
 
 async function playCard(card, game) {
-  const myId = supabase.auth.user()?.id || null;
-  if (!myId) return;
-
+  const myName = document.getElementById('name').value;
+  const myPlayer = game.turn_order.find(pid => game.player_names?.[pid] === myName);
+  if (!myPlayer) return;
+  
   const newHands = { ...game.hands };
   newHands[myId] = newHands[myId].filter(c => c.suit !== card.suit || c.rank !== card.rank);
 
