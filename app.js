@@ -70,4 +70,10 @@ document.getElementById('joinBtn').onclick = async () => {
   }
 };
 
+function startGame(players) {
+  console.log("🚀 Starting game with players:", players);
+  // You can now proceed to implement game logic here
+}
+
+
 
