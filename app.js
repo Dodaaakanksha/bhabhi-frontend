@@ -195,57 +195,85 @@ async function playCard(card, game) {
   if (!myPlayer) return;
 
   const newHands = { ...game.hands };
-  newHands[myPlayer] = newHands[myPlayer].filter(c => c.suit !== card.suit || c.rank !== card.rank);
+  newHands[myPlayer] = newHands[myPlayer].filter(c => !(c.suit === card.suit && c.rank === card.rank));
 
   const newPile = [...game.pile, { player: myPlayer, card }];
-  const currentSuit = game.starting_suit || card.suit;
-  const isFirstCard = game.pile.length === 0;
-
+  let startingSuit = game.starting_suit || card.suit;
   let nextTurn = (game.current_turn + 1) % game.turn_order.length;
-  const roundDone = newPile.length === game.turn_order.length;
 
-  let updatedGameState = {
-    room: game.room,
-    hands: newHands,
-    pile: newPile,
-    current_turn: nextTurn,
-    starting_suit: isFirstCard ? card.suit : game.starting_suit
-  };
+  const allPlayersPlayed = newPile.length === game.turn_order.length;
+  let updatedPile = newPile;
+  let updatedTurn = nextTurn;
 
-  // Check for mismatched suit
-  const isMismatched = card.suit !== currentSuit;
+  if (allPlayersPlayed) {
+    const cardsOfStartingSuit = newPile.filter(pc => pc.card.suit === startingSuit);
+    const suitRankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    let highest = -1;
+    let roundWinnerId = null;
 
-  // Check if round should end
-  if (isMismatched || roundDone) {
-    // Filter cards of correct suit
-    const validCards = newPile.filter(p => p.card.suit === currentSuit);
-    const rankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-    
-    const winner = validCards.reduce((top, current) => {
-      const topValue = rankOrder.indexOf(top.card.rank);
-      const currentValue = rankOrder.indexOf(current.card.rank);
-      return currentValue > topValue ? current : top;
-    });
-
-    const winnerId = winner.player;
-
-    // Remove pile from center
-    updatedGameState.pile = [];
-    updatedGameState.starting_suit = null;
-    updatedGameState.current_turn = game.turn_order.indexOf(winnerId);
-
-    if (isMismatched) {
-      // Add pile to winner's hand (you could also use collected[] tracking)
-      newHands[winnerId] = newHands[winnerId].concat(newPile.map(p => p.card));
-      updatedGameState.hands = newHands;
+    for (const pc of cardsOfStartingSuit) {
+      const val = suitRankOrder.indexOf(pc.card.rank);
+      if (val > highest) {
+        highest = val;
+        roundWinnerId = pc.player;
+      }
     }
-    // If all were same suit, cards are discarded – do nothing extra
+
+    const allSameSuit = newPile.every(pc => pc.card.suit === startingSuit);
+
+    if (allSameSuit) {
+      // Discard pile
+      updatedPile = [];
+    } else {
+      // Give all pile cards to roundWinner
+      newHands[roundWinnerId] = newHands[roundWinnerId].concat(newPile.map(p => p.card));
+      updatedPile = [];
+    }
+
+    startingSuit = null; // reset for next round
+    updatedTurn = game.turn_order.indexOf(roundWinnerId);
+    if (updatedTurn === -1) updatedTurn = 0;
   }
 
-  // Save updated state
-  const { error } = await supabase.from('games').upsert([updatedGameState], { onConflict: 'room' });
+  // Remove players who finished cards
+  let newTurnOrder = [...game.turn_order];
+  let newPlayerNames = { ...game.player_names };
 
-  if (error) console.error("❌ Failed to play:", error);
+  for (const pid of game.turn_order) {
+    if ((newHands[pid] || []).length === 0) {
+      delete newHands[pid];
+      delete newPlayerNames[pid];
+      newTurnOrder = newTurnOrder.filter(p => p !== pid);
+    }
+  }
+
+  // Determine if game ends
+  let loser = null;
+  if (newTurnOrder.length === 1) {
+    loser = newPlayerNames[newTurnOrder[0]];
+  }
+
+  if (newTurnOrder.length === 0) {
+    updatedTurn = 0;
+  } else if (updatedTurn >= newTurnOrder.length) {
+    updatedTurn = 0;
+  }
+
+  const { error } = await supabase.from('games').upsert([{
+    room: game.room,
+    hands: newHands,
+    pile: updatedPile,
+    turn_order: newTurnOrder,
+    current_turn: updatedTurn,
+    starting_suit: startingSuit,
+    player_names: newPlayerNames,
+    deck: game.deck,
+    loser
+  }], { onConflict: 'room' });
+
+  if (error) {
+    console.error("❌ Failed to play:", error);
+  }
 }
 
 const SUITS_ORDER = ['♠', '♥', '♦', '♣']; // descending priority order
@@ -263,42 +291,58 @@ function sortCardsDesc(cards) {
 }
 
 function updateUI(game) {
-  document.getElementById('game').querySelectorAll('.hand').forEach(n => n.remove());
-  document.getElementById('game').querySelectorAll('.pile').forEach(n => n.remove());
+  const gameDiv = document.getElementById('game');
+  gameDiv.querySelectorAll('.hand').forEach(n => n.remove());
+  gameDiv.querySelectorAll('.pile').forEach(n => n.remove());
 
   const myName = document.getElementById('name').value;
   const myPlayer = game.turn_order.find(pid => game.player_names?.[pid] === myName);
   const isMyTurn = game.turn_order[game.current_turn] === myPlayer;
 
+  if (game.loser) {
+    document.getElementById('status').innerText = `🎉 Game Over! 😢 ${game.loser} is the Bhabhi (loser).`;
+    return;
+  }
+
+  if (!game.hands[myPlayer]) {
+    document.getElementById('status').innerText = "✅ You've finished all your cards!";
+    return;
+  }
+
+  // Sort cards by suit & descending rank
+  const suitOrder = ['♠','♥','♦','♣'];
+  const rankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+  const cards = (game.hands[myPlayer] || []).slice().sort((a, b) => {
+    if (a.suit !== b.suit) return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
+    return rankOrder.indexOf(b.rank) - rankOrder.indexOf(a.rank);
+  });
+
   // Render hand
-  const cards = game.hands[myPlayer] || [];
-  const sortedCards = sortCardsDesc(cards);
   const handDiv = document.createElement('div');
   handDiv.className = 'hand';
-  handDiv.innerHTML = `<h3>Your Cards (${sortedCards.length})</h3>`;
-  sortedCards.forEach((c, i) => {
+  handDiv.innerHTML = `<h3>Your Cards (${cards.length})</h3>`;
+  cards.forEach((c, i) => {
     const btn = document.createElement('button');
     btn.innerText = `${c.rank}${c.suit}`;
     btn.disabled = !isMyTurn;
     btn.onclick = () => playCard(c, game);
     handDiv.appendChild(btn);
   });
-  document.getElementById('game').appendChild(handDiv);
+  gameDiv.appendChild(handDiv);
 
   // Render pile
   const pileDiv = document.createElement('div');
   pileDiv.className = 'pile';
-  pileDiv.innerHTML = `<h3>Center Pile (${game.starting_suit ?? '-'})</h3>
-  ${game.pile.map(pc => `${pc.card.rank}${pc.card.suit} (${game.player_names?.[pc.player] ?? pc.player})`).join(' ')}`;
-  //pileDiv.innerHTML = `<h3>Pile:</h3>${game.pile.map(pc => {
-    //const playerName = game.player_names ? game.player_names[pc.player] : pc.player;
-    //return `${pc.card.rank}${pc.card.suit} (${playerName})`;
-  //}).join(' ')}`;
-  document.getElementById('game').appendChild(pileDiv);
+  pileDiv.innerHTML = `<h3>Pile:</h3>`;
+  game.pile.forEach(pc => {
+    const name = game.player_names?.[pc.player] || pc.player;
+    pileDiv.innerHTML += `<div>${pc.card.rank}${pc.card.suit} (${name})</div>`;
+  });
+  gameDiv.appendChild(pileDiv);
 
-  const currentPlayerId = game.turn_order[game.current_turn];
-  const currentPlayerName = game.player_names?.[currentPlayerId] || "Someone";
+  // Show current status
+  const currentPlayerName = game.player_names?.[game.turn_order[game.current_turn]];
   document.getElementById('status').innerText =
-  isMyTurn ? "🟢 Your turn! Play a card." : `⏳ Waiting for ${currentPlayerName}...`;
+    isMyTurn ? "🟢 Your turn! Play a card." : `⏳ Waiting for ${currentPlayerName}`;
 }
 
