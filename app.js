@@ -108,39 +108,58 @@ async function startGame(players) {
     [fullDeck[i], fullDeck[j]] = [fullDeck[j], fullDeck[i]];
   }
 
-  // Distribute
+  // Distribute cards
   const numPlayers = players.length;
   const hands = {};
   players.forEach((p) => (hands[p.id] = []));
 
   let turn = 0;
   while (fullDeck.length) {
-  const card = fullDeck.pop();
-  const player = players[turn % numPlayers];
-  hands[player.id].push(card);
-  turn++;
-}
+    const card = fullDeck.pop();
+    const player = players[turn % numPlayers];
+    hands[player.id].push(card);
+    turn++;
+  }
 
-  // Save game data to Supabase
   const room = players[0].room;
-  supabase.from('games').insert([
-    {
-      room,
-      deck: [],
-      hands,
-      started: true
-    }
-  ]).then(({ error }) => {
+
+  // Check if game already exists for this room
+  const { data: existingGame, error: selectError } = await supabase
+    .from('games')
+    .select('*')
+    .eq('room', room)
+    .single();
+
+  if (selectError && selectError.code !== 'PGRST116') {
+    // Error other than "no rows found"
+    console.error("❌ Error checking existing game:", selectError.message);
+    return;
+  }
+
+  if (existingGame) {
+    console.log("✅ Game already exists for this room. Skipping insert.");
+  } else {
+    // Insert new game row
+    const { error } = await supabase.from('games').insert([
+      {
+        room,
+        deck: [],
+        hands,
+        started: true,
+      },
+    ]);
+
     if (error) {
       console.error("❌ Failed to start game:", error.message);
-    } else {
-      console.log("✅ Game started and hands saved to Supabase");
+      return;
     }
-  });
+
+    console.log("✅ Game started and hands saved to Supabase");
+  }
 
   // Show own hand
   const myName = document.getElementById('name').value;
-  const myPlayer = players.find(p => p.name === myName);
+  const myPlayer = players.find((p) => p.name === myName);
   if (myPlayer) {
     showHand(hands[myPlayer.id]);
   } else {
